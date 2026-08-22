@@ -1,0 +1,43 @@
+{% load planning_tags %}
+
+<html>
+<head><title>Дашборд хаба</title></head>
+<body>
+    <h1>{% welcome_user %}</h1>
+    <p>Текущее время: {% current_time_str "%Y-%m-%d %H:%M" %}</p>
+
+    <h2>Ваш баланс расходов: {{ total_expenses }} руб.</h2>
+
+    <h2>Ваши задачи:</h2>
+    <ul>
+        {% for task in tasks_page %}
+            <li>
+                <strong>{{ task.title|truncatechars:20 }}</strong>
+                (Дедлайн: {{ task.due_date|date:"d.m.Y" }})
+                <a href="{{ task.get_absolute_url }}">Смотреть</a>
+            </li>
+        {% endfor %}
+    </ul>
+
+    <div class="pagination">
+        {% if tasks_page.has_previous %}
+            <a href="?page={{ tasks_page.previous_page_number }}">Назад</a>
+        {% endif %}
+        <span>Страница {{ tasks_page.number }} из {{ tasks_page.paginator.num_pages }}</span>
+        {% if tasks_page.has_next %}
+            <a href="?page={{ tasks_page.next_page_number }}">Вперед</a>
+        {% endif %}
+    </div>
+
+    <h3>Важные задачи! Поспешите:</h3>
+    {% get_high_priority_tasks current_user as hot_tasks %}
+    <ul>
+        {% for t in hot_tasks %}
+            <li>🔥 {{ t.title }}</li>
+        {% endfor %}
+    </ul>
+
+    <hr>
+    <a href="{% url 'logout' %}">Выйти из аккаунта</a>
+</body>
+</html>

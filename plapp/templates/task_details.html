@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head><title>{{ task.title }}</title></head>
+<body>
+    <h1>Задача: {{ task.title }}</h1>
+    <p><strong>Описание:</strong> {{ task.description|default:"Нет описания" }}</p>
+    <p><strong>Приоритет:</strong> {{ task.get_priority_display }}</p>
+    <p><strong>Статус:</strong> {{ task.get_status_display }}</p>
+    <p><strong>Дедлайн:</strong> {{ task.due_date|date:"d.m.Y" }}</p>
+
+    {% if task.image_path %}
+        <p><img src="{{ task.image_path.url }}" alt="Изображение задачи" style="max-width: 300px;"></p>
+    {% endif %}
+
+    <hr>
+    <a href="{% url 'dashboard' user_id=task.user_id.id %}">Вернуться на дашборд</a>
+</body>
+</html>
