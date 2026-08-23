@@ -1,10 +1,18 @@
 from django.contrib import admin
 from .models import *
 
+
 class FavoriteInline(admin.TabularInline):
     model = favorites
     extra = 1
     raw_id_fields = ('task',)
+
+
+class GoalCategoryInline(admin.TabularInline):
+    # Позволяет редактировать M2M-через-through goals <-> task_categories
+    # прямо на странице цели в админке.
+    model = goal_categories
+    extra = 1
 
 
 @admin.register(user)
@@ -51,7 +59,6 @@ class TaskAdmin(admin.ModelAdmin):
         return "✔ Завершена" if obj.status == 'completed' else "⏳ Активна"
 
 
-
 @admin.register(favorites)
 class FavoriteAdmin(admin.ModelAdmin):
     list_display = ('user', 'task', 'added_at')
@@ -60,13 +67,11 @@ class FavoriteAdmin(admin.ModelAdmin):
     raw_id_fields = ('user', 'task')
 
 
-
 @admin.register(finance_categories)
 class FinanceCategoryAdmin(admin.ModelAdmin):
     list_display = ('id', 'name', 'type')
     list_filter = ('type',)
     search_fields = ('name',)
-
 
 
 @admin.register(finances)
@@ -78,7 +83,6 @@ class FinanceAdmin(admin.ModelAdmin):
     date_hierarchy = 'operation_date'
 
     raw_id_fields = ('user', 'category')
-
 
 
 @admin.register(goals)
@@ -100,6 +104,7 @@ class GoalAdmin(admin.ModelAdmin):
 
     raw_id_fields = ('user',)
 
+    inlines = [GoalCategoryInline]
 
 
 @admin.register(habits)

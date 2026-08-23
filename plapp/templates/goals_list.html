@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% block title %}Цели{% endblock %}
+{% block content %}
+    <div class="nav-top">
+        <a href="{% url 'dashboard' user_id=current_user.id %}">← Дашборд</a>
+        <a href="{% url 'goal_create' user_id=current_user.id %}" class="btn">+ Цель</a>
+    </div>
+    <h1>Ваши цели</h1>
+
+    {% for goal in goals %}
+        <div class="card">
+            <h3>{{ goal.title }}</h3>
+            {% if goal.description %}<p style="color: var(--text-dim);">{{ goal.description|truncatechars:80 }}</p>{% endif %}
+
+            <div class="progress-bar">
+                <div class="progress-bar-fill" style="width: {% widthratio goal.current_value goal.target_value 100 %}%;"></div>
+            </div>
+            <p style="font-size:13px; color: var(--text-dim);">
+                {{ goal.current_value }} / {{ goal.target_value }} · {{ goal.get_status_display }}
+            </p>
+
+            <p>
+                {% for category in goal.categories.all %}
+                    <span class="tag">#{{ category.name }}</span>
+                {% empty %}
+                    <span class="tag">без категории</span>
+                {% endfor %}
+            </p>
+
+            <div class="actions">
+                <a href="{% url 'goal_edit' pk=goal.pk %}" class="btn btn-outline">Изменить</a>
+                <a href="{% url 'goal_delete' pk=goal.pk %}" class="btn btn-danger">Удалить</a>
+            </div>
+        </div>
+    {% empty %}
+        <p>Целей пока нет.</p>
+    {% endfor %}
+{% endblock %}

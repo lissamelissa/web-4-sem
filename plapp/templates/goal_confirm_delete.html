@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block title %}Удалить цель{% endblock %}
+{% block content %}
+    <div class="card">
+        <h2>Удалить цель «{{ goal.title }}»?</h2>
+        <p style="color: var(--text-dim);">Это действие необратимо.</p>
+        <form method="post">
+            {% csrf_token %}
+            <div class="actions">
+                <button type="submit" class="btn btn-danger">Удалить</button>
+                <a href="{% url 'goals_list' user_id=goal.user_id %}" class="btn btn-outline">Отмена</a>
+            </div>
+        </form>
+    </div>
+{% endblock %}

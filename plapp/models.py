@@ -1,9 +1,13 @@
 from django.db import models
 from django.urls import reverse
+
+
 class ActiveTaskManager(models.Manager):
     def get_queryset(self):
         # Возвращает только активные задачи
         return super().get_queryset().filter(status='active')
+
+
 class user(models.Model):
     class Role(models.TextChoices):
         USER = 'user', 'User'
@@ -59,7 +63,7 @@ class tasks(models.Model):
 
     priority = models.CharField(max_length=10, choices=Priority.choices, default=Priority.MEDIUM, verbose_name="Приоритет")
 
-    category_id = models.ForeignKey(task_categories, on_delete=models.SET_NULL, null=True, verbose_name="Категория")
+    category_id = models.ForeignKey(task_categories, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Категория")
 
     due_date = models.DateField(null=True, blank=True, verbose_name="Дедлайн")
 
@@ -71,14 +75,12 @@ class tasks(models.Model):
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Обновлено")
 
     objects = models.Manager()  # Стандартный менеджер (tasks.objects.all())
-    active_objects = ActiveTaskManager()  # ТРЕБОВАНИЕ: Наш кастомный менеджер (tasks.active_objects.all())
+    active_objects = ActiveTaskManager()  # Наш кастомный менеджер (tasks.active_objects.all())
 
     def __str__(self):
         return self.title
 
-    # ТРЕБОВАНИЕ: get_absolute_url и reverse
     def get_absolute_url(self):
-        # Предполагаем, что в urls.py есть маршрут с name='task_detail'
         return reverse('task_detail', kwargs={'pk': self.pk})
 
     class Meta:
@@ -157,15 +159,50 @@ class goals(models.Model):
 
     image_path = models.CharField(max_length=255, blank=True, null=True, verbose_name="Изображение")
 
+    # Пункт 7: ManyToManyField с параметром through.
+    # Промежуточная модель goal_categories хранит доп. данные о связи
+    # (дату привязки категории к цели), поэтому обычный M2M без through не подходит.
+    categories = models.ManyToManyField(
+        task_categories,
+        through='goal_categories',
+        related_name='goals',
+        blank=True,
+        verbose_name="Категории",
+    )
+
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Создано")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Обновлено")
 
     def __str__(self):
         return self.title
 
+    def save(self, *args, **kwargs):
+        # Пункт 3: собственная логика в save() модели.
+        # Если прогресс достиг цели — автоматически помечаем её достигнутой
+        # при каждом сохранении, а не только вручную через форму.
+        if self.current_value is not None and self.target_value is not None:
+            if self.current_value >= self.target_value and self.status != self.Status.ACHIEVED:
+                self.status = self.Status.ACHIEVED
+        super().save(*args, **kwargs)
+
     class Meta:
         verbose_name = "Цель"
         verbose_name_plural = "Цели"
+
+
+class goal_categories(models.Model):
+    """Промежуточная (through) таблица для goals.categories."""
+    goal = models.ForeignKey(goals, on_delete=models.CASCADE, related_name='category_links', verbose_name="Цель")
+    category = models.ForeignKey(task_categories, on_delete=models.CASCADE, related_name='goal_links', verbose_name="Категория")
+    added_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата привязки")
+
+    def __str__(self):
+        return f"{self.goal} — {self.category}"
+
+    class Meta:
+        unique_together = ('goal', 'category')
+        verbose_name = "Категория цели"
+        verbose_name_plural = "Категории целей"
 
 
 class habits(models.Model):

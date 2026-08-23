@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block title %}{% if mode == 'edit' %}Редактировать цель{% else %}Новая цель{% endif %}{% endblock %}
+{% block content %}
+    <div class="nav-top">
+        <a href="{% url 'goals_list' user_id=current_user.id %}">← К целям</a>
+    </div>
+    <div class="card">
+        <h2>{% if mode == 'edit' %}Редактировать цель{% else %}Новая цель{% endif %}</h2>
+        <form method="post">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit" class="btn">Сохранить</button>
+        </form>
+    </div>
+{% endblock %}

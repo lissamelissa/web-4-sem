@@ -1,18 +1,24 @@
-<!DOCTYPE html>
-<html>
-<head><title>{{ task.title }}</title></head>
-<body>
-    <h1>Задача: {{ task.title }}</h1>
-    <p><strong>Описание:</strong> {{ task.description|default:"Нет описания" }}</p>
-    <p><strong>Приоритет:</strong> {{ task.get_priority_display }}</p>
-    <p><strong>Статус:</strong> {{ task.get_status_display }}</p>
-    <p><strong>Дедлайн:</strong> {{ task.due_date|date:"d.m.Y" }}</p>
+{% extends 'base.html' %}
+{% block title %}{{ task.title }}{% endblock %}
+{% block content %}
+    <div class="nav-top">
+        <a href="{% url 'dashboard' user_id=task.user_id.id %}">← Дашборд</a>
+    </div>
+    <div class="card">
+        <h1>{{ task.title }}</h1>
+        <p><strong>Описание:</strong> {{ task.description|default:"Нет описания" }}</p>
+        <p><strong>Приоритет:</strong> {{ task.get_priority_display }}</p>
+        <p><strong>Статус:</strong> {{ task.get_status_display }}</p>
+        <p><strong>Дедлайн:</strong> {{ task.due_date|date:"d.m.Y" }}</p>
+        {% if task.category_id %}<p><strong>Категория:</strong> {{ task.category_id.name }}</p>{% endif %}
 
-    {% if task.image_path %}
-        <p><img src="{{ task.image_path.url }}" alt="Изображение задачи" style="max-width: 300px;"></p>
-    {% endif %}
+        {% if task.image_path %}
+            <p><img src="{{ task.image_path.url }}" alt="Изображение задачи" style="max-width: 100%; border-radius: 12px;"></p>
+        {% endif %}
 
-    <hr>
-    <a href="{% url 'dashboard' user_id=task.user_id.id %}">Вернуться на дашборд</a>
-</body>
-</html>
+        <div class="actions">
+            <a href="{% url 'task_edit' pk=task.pk %}" class="btn btn-outline">Изменить</a>
+            <a href="{% url 'task_delete' pk=task.pk %}" class="btn btn-danger">Удалить</a>
+        </div>
+    </div>
+{% endblock %}
