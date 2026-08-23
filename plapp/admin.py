@@ -1,5 +1,72 @@
+import os
+from io import BytesIO
+
+from django.conf import settings
 from django.contrib import admin
+from django.http import HttpResponse
+
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import mm
+from reportlab.pdfgen import canvas
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+
 from .models import *
+
+
+# --- Пункт 1 (третье задание): генерация PDF в админке ---
+
+# Стандартные шрифты reportlab (Helvetica и т.д.) не поддерживают кириллицу,
+# поэтому подключаем реальный TTF-шрифт с рабочей машины.
+_CYRILLIC_FONT_CANDIDATES = [
+    r"C:\Windows\Fonts\arial.ttf",
+    r"C:\Windows\Fonts\segoeui.ttf",
+    str(settings.BASE_DIR / "plapp" / "static" / "fonts" / "DejaVuSans.ttf"),
+]
+
+
+def _register_cyrillic_font():
+    for path in _CYRILLIC_FONT_CANDIDATES:
+        if os.path.exists(path):
+            if 'CyrillicFont' not in pdfmetrics.getRegisteredFontNames():
+                pdfmetrics.registerFont(TTFont('CyrillicFont', path))
+            return 'CyrillicFont'
+    # Ни один шрифт не найден — вернётся Helvetica, кириллица не отобразится.
+    return 'Helvetica'
+
+
+@admin.action(description="Экспортировать выбранные задачи в PDF")
+def export_tasks_pdf(modeladmin, request, queryset):
+    font_name = _register_cyrillic_font()
+
+    buffer = BytesIO()
+    doc = canvas.Canvas(buffer, pagesize=A4)
+    width, height = A4
+
+    doc.setFont(font_name, 16)
+    doc.drawString(20 * mm, height - 20 * mm, "Список задач")
+
+    doc.setFont(font_name, 10)
+    y = height - 32 * mm
+    for task in queryset.order_by('priority'):
+        line = (
+            f"{task.title} — {task.get_priority_display()} — "
+            f"до {task.due_date.strftime('%d.%m.%Y') if task.due_date else '—'} — "
+            f"{task.get_status_display()}"
+        )
+        doc.drawString(20 * mm, y, line[:110])
+        y -= 8 * mm
+        if y < 20 * mm:
+            doc.showPage()
+            doc.setFont(font_name, 10)
+            y = height - 20 * mm
+
+    doc.save()
+    buffer.seek(0)
+
+    response = HttpResponse(buffer.read(), content_type='application/pdf')
+    response['Content-Disposition'] = 'attachment; filename="tasks.pdf"'
+    return response
 
 
 class FavoriteInline(admin.TabularInline):
@@ -9,8 +76,6 @@ class FavoriteInline(admin.TabularInline):
 
 
 class GoalCategoryInline(admin.TabularInline):
-    # Позволяет редактировать M2M-через-through goals <-> task_categories
-    # прямо на странице цели в админке.
     model = goal_categories
     extra = 1
 
@@ -54,6 +119,8 @@ class TaskAdmin(admin.ModelAdmin):
 
     raw_id_fields = ('user_id', 'category_id')
 
+    actions = [export_tasks_pdf]
+
     @admin.display(description="Статус")
     def status_label(self, obj):
         return "✔ Завершена" if obj.status == 'completed' else "⏳ Активна"
@@ -76,7 +143,7 @@ class FinanceCategoryAdmin(admin.ModelAdmin):
 
 @admin.register(finances)
 class FinanceAdmin(admin.ModelAdmin):
-    list_display = ('id', 'user', 'category', 'amount', 'operation_date')
+    list_display = ('id', 'user', 'category', 'amount', 'operation_date', 'receipt')
     list_filter = ('operation_date', 'category')
     search_fields = ('comment',)
 

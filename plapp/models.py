@@ -129,6 +129,11 @@ class finances(models.Model):
     operation_date = models.DateField(verbose_name="Дата операции")
 
     comment = models.CharField(max_length=255, blank=True, null=True, verbose_name="Комментарий")
+
+    # Пункт 2 (третье задание): models.FileField — чек/квитанция к операции.
+    # В отличие от ImageField у задач, сюда можно прикрепить любой файл (PDF, скан и т.д.).
+    receipt = models.FileField(upload_to='receipts/', blank=True, null=True, verbose_name="Чек")
+
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Создано")
 
     def __str__(self):
@@ -159,9 +164,9 @@ class goals(models.Model):
 
     image_path = models.CharField(max_length=255, blank=True, null=True, verbose_name="Изображение")
 
-    # Пункт 7: ManyToManyField с параметром through.
-    # Промежуточная модель goal_categories хранит доп. данные о связи
-    # (дату привязки категории к цели), поэтому обычный M2M без through не подходит.
+    # Пункт 3 (третье задание): models.URLField() — ссылка на источник/материал по цели.
+    source_url = models.URLField(blank=True, null=True, verbose_name="Ссылка на источник")
+
     categories = models.ManyToManyField(
         task_categories,
         through='goal_categories',
@@ -177,9 +182,6 @@ class goals(models.Model):
         return self.title
 
     def save(self, *args, **kwargs):
-        # Пункт 3: собственная логика в save() модели.
-        # Если прогресс достиг цели — автоматически помечаем её достигнутой
-        # при каждом сохранении, а не только вручную через форму.
         if self.current_value is not None and self.target_value is not None:
             if self.current_value >= self.target_value and self.status != self.Status.ACHIEVED:
                 self.status = self.Status.ACHIEVED
