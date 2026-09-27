@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+{% block title %}Финансы — таблица{% endblock %}
+{% block extra_head %}
+<style>
+    /* Печать / сохранение в PDF: убираем всё лишнее, оставляем чистый отчёт */
+    @media print {
+        .site-header, .site-footer, form, .btn, .no-print { display: none !important; }
+        body { background: #fff !important; color: #000 !important; }
+        .card { border: 1px solid #000 !important; background: #fff !important; box-shadow: none !important; }
+        table, th, td { border: 1px solid #000 !important; color: #000 !important; }
+        a { color: #000 !important; text-decoration: none !important; }
+        .container { max-width: 100% !important; }
+    }
+</style>
+{% endblock %}
+{% block content %}
+    <div class="nav-top">
+        <h1 style="margin:0;">Финансовые операции</h1>
+        <div class="actions no-print" style="margin:0;">
+            <a href="{% url 'finance_create' user_id=current_user.id %}" class="btn">+ Операция</a>
+            <button type="button" class="btn btn-outline" onclick="window.print()">🖨 Печать / сохранить в PDF</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <p style="margin:0 0 8px;">Доходы: <strong>{{ total_income }} ₽</strong> · Расходы: <strong>{{ total_expense }} ₽</strong></p>
+        {% if used_categories %}
+            <p style="margin:0;">
+                {% for c in used_categories %}<span class="tag">#{{ c }}</span>{% endfor %}
+            </p>
+        {% endif %}
+    </div>
+
+    <form method="get" class="card no-print" style="display:flex; gap:8px; align-items:flex-start;">
+        <label for="finance-search" style="position:absolute; left:-9999px;">Поиск по комментарию</label>
+        <input id="finance-search" type="text" name="q" value="{{ search_query }}" placeholder="Поиск по комментарию (с учётом регистра)" class="form-input" style="margin:0;">
+        <button type="submit" class="btn">Найти</button>
+    </form>
+
+    {% if has_records %}
+        <div class="card" style="overflow-x:auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th scope="col">Дата</th>
+                        <th scope="col">Категория</th>
+                        <th scope="col">Сумма</th>
+                        <th scope="col">Комментарий</th>
+                        <th scope="col">Чек</th>
+                        <th scope="col" class="no-print">Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for record in records %}
+                    <tr>
+                        <td>{{ record.operation_date|date:"d.m.Y" }}</td>
+                        <td>{{ record.category.name }}</td>
+                        <td>{{ record.amount }} ₽</td>
+                        <td>{{ record.comment|default:"—" }}</td>
+                        <td>
+                            {% if record.receipt %}<a href="{{ record.receipt.url }}">файл</a>{% else %}—{% endif %}
+                        </td>
+                        <td class="no-print">
+                            <div style="display:flex; gap:6px;">
+                                <a href="{% url 'finance_edit' pk=record.pk %}" class="btn btn-outline btn-small">Изменить</a>
+                                <a href="{% url 'finance_delete' pk=record.pk %}" class="btn btn-danger btn-small">Удалить</a>
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <p class="tag">Показаны последние {{ records|length }} операций.</p>
+    {% else %}
+        <p>Операций пока нет — добавьте их через админку.</p>
+    {% endif %}
+{% endblock %}

@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+{% block title %}Календарь{% endblock %}
+{% block extra_head %}
+<style>
+    .container { max-width: 900px; }
+    .calendar-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 14px;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    .calendar-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 6px;
+    }
+    .calendar-weekday {
+        text-align: center;
+        color: var(--text-dim);
+        font-size: 13px;
+        padding-bottom: 6px;
+    }
+    .calendar-day {
+        background: var(--card);
+        border: 1px solid var(--card-border);
+        border-radius: 10px;
+        padding: 6px;
+        min-height: 100px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        overflow: hidden;
+    }
+    .calendar-day.empty { background: transparent; border: none; }
+    .calendar-day.today { border-color: var(--accent); }
+    .calendar-day-number { font-size: 13px; color: var(--text-dim); }
+    .calendar-day.today .calendar-day-number { color: var(--accent-hover); font-weight: 600; }
+    .calendar-task {
+        display: block;
+        font-size: 11px;
+        padding: 2px 6px;
+        border-radius: 6px;
+        background: #1c1919;
+        border-left: 3px solid var(--accent);
+        color: var(--text);
+        text-decoration: none;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .calendar-task.priority-high { border-left-color: var(--danger); }
+    .calendar-task.status-completed { opacity: 0.5; text-decoration: line-through; }
+    @media (max-width: 700px) {
+        .calendar-day { min-height: 64px; }
+        .calendar-task { font-size: 10px; }
+    }
+</style>
+{% endblock %}
+{% block content %}
+    <div class="calendar-header">
+        <h1 style="margin:0;">{{ month_name }} {{ year }}</h1>
+        <div class="actions" style="margin:0;">
+            {% if overdue_count %}
+                <span class="tag" style="color: var(--danger);">🔥 Просрочено: {{ overdue_count }}</span>
+            {% endif %}
+            <a href="{% url 'calendar_view' user_id=current_user.id %}?year={{ prev_year }}&month={{ prev_month }}" class="btn btn-outline">← Пред.</a>
+            <a href="{% url 'calendar_view' user_id=current_user.id %}?year={{ next_year }}&month={{ next_month }}" class="btn btn-outline">След. →</a>
+            <a href="{% url 'task_create' user_id=current_user.id %}" class="btn">+ Задача</a>
+        </div>
+    </div>
+
+    <div class="calendar-grid">
+        {% for wd in weekday_names %}
+            <div class="calendar-weekday">{{ wd }}</div>
+        {% endfor %}
+
+        {% for week in weeks %}
+            {% for day in week %}
+                {% if day %}
+                    <div class="calendar-day {% if day.is_today %}today{% endif %}">
+                        <span class="calendar-day-number">{{ day.day }}</span>
+                        {% for t in day.tasks %}
+                            <a href="{% url 'task_detail' pk=t.id %}"
+                               class="calendar-task priority-{{ t.priority }} status-{{ t.status }}"
+                               title="{{ t.title }}">{{ t.title }}</a>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="calendar-day empty"></div>
+                {% endif %}
+            {% endfor %}
+        {% endfor %}
+    </div>
+{% endblock %}

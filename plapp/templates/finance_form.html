@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block title %}{% if mode == 'edit' %}Редактировать операцию{% else %}Новая операция{% endif %}{% endblock %}
+{% block content %}
+    <div class="nav-top">
+        <a href="{% url 'finances_table' user_id=current_user.id %}">← К финансам</a>
+    </div>
+    <div class="card">
+        <h2>{% if mode == 'edit' %}Редактировать операцию{% else %}Новая операция{% endif %}</h2>
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit" class="btn">Сохранить</button>
+        </form>
+    </div>
+{% endblock %}

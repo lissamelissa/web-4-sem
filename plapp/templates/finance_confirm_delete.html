@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block title %}Удалить операцию{% endblock %}
+{% block content %}
+    <div class="card">
+        <h2>Удалить операцию «{{ record.category.name }} — {{ record.amount }} ₽»?</h2>
+        <p style="color: var(--text-dim);">Это действие необратимо.</p>
+        <form method="post">
+            {% csrf_token %}
+            <div class="actions">
+                <button type="submit" class="btn btn-danger">Удалить</button>
+                <a href="{% url 'finances_table' user_id=record.user_id %}" class="btn btn-outline">Отмена</a>
+            </div>
+        </form>
+    </div>
+{% endblock %}

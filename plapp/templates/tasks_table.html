@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+{% block title %}Задачи — таблица{% endblock %}
+{% block extra_head %}{{ search_form.media }}{% endblock %}
+{% block content %}
+    <h1>Все задачи ({{ total_count }})</h1>
+
+    <form method="get" class="card">
+        {% for field in search_form %}
+            <div class="form-row">
+                {{ field.label_tag }}
+                {{ field }}
+                {% if field.errors %}
+                    <div class="field-errors">{{ field.errors }}</div>
+                {% endif %}
+                {% if field.help_text %}
+                    <p class="tag">{{ field.help_text }}</p>
+                {% endif %}
+            </div>
+        {% endfor %}
+        <div class="actions">
+            <button type="submit" class="btn">Найти</button>
+            <a href="{% url 'tasks_table' user_id=current_user.id %}" class="btn btn-outline">Сбросить</a>
+        </div>
+    </form>
+
+    <form method="post" action="{% url 'tasks_bulk_action' user_id=current_user.id %}">
+        {% csrf_token %}
+        <div class="card" style="overflow-x:auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th scope="col"><span style="position:absolute;left:-9999px;">Выбрать</span></th>
+                        <th scope="col">Название</th>
+                        <th scope="col">Дедлайн</th>
+                        <th scope="col">Статус</th>
+                        <th scope="col">Категории</th>
+                        <th scope="col">Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for task in task_list %}
+                    <tr>
+                        <td><input type="checkbox" name="selected_tasks" value="{{ task.pk }}" aria-label="Выбрать задачу «{{ task.title }}»"></td>
+                        <td><a href="{{ task.get_absolute_url }}">{{ task.title }}</a></td>
+                        <td>{{ task.due_date|date:"d.m.Y" }}</td>
+                        <td>{{ task.get_status_display }}</td>
+                        <td>
+                            {% for c in task.extra_categories.all %}<span class="tag">#{{ c.name }}</span>{% endfor %}
+                        </td>
+                        <td>
+                            <div style="display:flex; gap:6px;">
+                                <a href="{% url 'task_edit' pk=task.pk %}" class="btn btn-outline btn-small">Изменить</a>
+                                <a href="{% url 'task_delete' pk=task.pk %}" class="btn btn-danger btn-small">Удалить</a>
+                            </div>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="6">Ничего не найдено.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="actions">
+            <label for="bulk-action-select" style="margin:0;">Массовое действие для отмеченных:</label>
+            <select name="bulk_action" id="bulk-action-select" class="form-select" style="width:auto; margin:0;">
+                <option value="complete">Отметить выполненными</option>
+                <option value="delete">Удалить</option>
+            </select>
+            <button type="submit" class="btn" onclick="return confirm('Применить действие к отмеченным задачам?');">Применить к выбранным</button>
+        </div>
+    </form>
+{% endblock %}

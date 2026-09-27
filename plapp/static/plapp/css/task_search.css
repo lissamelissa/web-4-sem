@@ -1,0 +1,7 @@
+.search-textarea {
+    resize: vertical;
+    min-height: 44px;
+}
+.search-textarea:focus {
+    outline: 2px solid var(--accent, #a05a5a);
+}

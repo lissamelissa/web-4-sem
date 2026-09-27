@@ -1,0 +1,151 @@
+{% extends 'base.html' %}
+{% block title %}Главная{% endblock %}
+{% block extra_head %}
+<style>
+    .widgets-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap:16px; margin-top:16px; }
+    .widget-list { list-style:none; padding:0; margin:0; counter-reset:witem; }
+    .widget-list li { counter-increment: witem; display:flex; gap:8px; padding:8px 0; border-bottom:1px solid var(--card-border); align-items:flex-start; justify-content:space-between; }
+    .widget-list li:last-child { border-bottom:none; }
+    .widget-list li::before { content: counter(witem) "."; color:var(--text-dim); font-size:13px; min-width:16px; flex-shrink:0; }
+    .widget-item-title { font-weight:500; display:block; }
+    .widget-item-meta { font-size:12px; color:var(--text-dim); }
+    .mini-cal { max-width: 320px; margin: 0 auto 12px; }
+    .mini-cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:3px; }
+    .mini-cal-weekday { text-align:center; font-size:10px; color:var(--text-dim); }
+    .mini-cal-day { aspect-ratio:1; display:flex; align-items:center; justify-content:center; border-radius:6px; background:#1c1919; font-size:11px; position:relative; color: var(--text); }
+    .mini-cal-day.today { outline:1px solid var(--accent); }
+    .mini-cal-day.has-tasks::after { content:''; position:absolute; bottom:3px; width:4px; height:4px; border-radius:50%; background:var(--accent-hover); }
+    .mini-cal-day.empty { background:transparent; }
+    .fav-btn { background:none; border:none; color: var(--accent-hover); cursor:pointer; font-size:16px; padding:0 4px; }
+    .chip-row { display:flex; gap:6px; flex-wrap:wrap; margin: 16px 0 0; }
+    .chip { background:#1c1919; border:1px solid var(--card-border); border-radius:999px; padding:3px 10px; font-size:12px; color: var(--text-dim); }
+</style>
+{% endblock %}
+{% block content %}
+
+    <form method="get" class="card" style="display:flex; gap:8px;">
+        <input type="text" name="q" value="{{ search_query }}" placeholder="Поиск по задачам..." class="form-input" style="margin:0;">
+        <button type="submit" class="btn">Найти</button>
+    </form>
+
+    {% if search_results is not None %}
+        <div class="card">
+            <h3>Результаты поиска «{{ search_query }}»</h3>
+            {% for t in search_results %}
+                <div class="task-row">
+                    <a href="{{ t.get_absolute_url }}">{{ t.title }}</a>
+                    <span class="tag">{{ t.get_status_display }}</span>
+                </div>
+            {% empty %}
+                <p>Ничего не найдено.</p>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <div class="widgets-grid">
+
+        <!-- Виджет 1: календарь -->
+        <div class="card">
+            <h3>📅 {{ month_name }} — задачи по дням</h3>
+            <div class="mini-cal">
+                <div class="mini-cal-grid">
+                    {% for wd in weekday_names %}<div class="mini-cal-weekday">{{ wd }}</div>{% endfor %}
+                    {% for week in mini_weeks %}
+                        {% for day in week %}
+                            {% if day %}
+                                <div class="mini-cal-day {% if day.is_today %}today{% endif %} {% if day.has_tasks %}has-tasks{% endif %}">{{ day.day }}</div>
+                            {% else %}
+                                <div class="mini-cal-day empty"></div>
+                            {% endif %}
+                        {% endfor %}
+                    {% endfor %}
+                </div>
+            </div>
+            <ol class="widget-list">
+                {% for t in upcoming_tasks %}
+                    <li>
+                        <div>
+                            <a href="{{ t.get_absolute_url }}" class="widget-item-title">{{ t.title }}</a>
+                            <span class="widget-item-meta">до {{ t.due_date|date:"d.m.Y" }} · {{ t.get_status_display }}</span>
+                        </div>
+                    </li>
+                {% empty %}
+                    <li>Ближайших задач нет.</li>
+                {% endfor %}
+            </ol>
+            {% if upcoming_priorities %}
+                <p class="widget-item-meta" style="margin-top:8px;">Приоритеты рядом: {{ upcoming_priorities|join:", " }}</p>
+            {% endif %}
+            <a href="{% url 'calendar_view' user_id=current_user.id %}" class="btn btn-outline" style="margin-top:10px;">Открыть полный календарь →</a>
+        </div>
+
+        <!-- Виджет 2: цели -->
+        <div class="card">
+            <h3>🎯 Топ целей по срокам</h3>
+            <ol class="widget-list">
+                {% for g in top_goals %}
+                    <li>
+                        <div style="flex:1;">
+                            <a href="{% url 'goal_edit' pk=g.pk %}" class="widget-item-title">{{ g.title }}</a>
+                            <span class="widget-item-meta">до {{ g.deadline|date:"d.m.Y" }} · {{ g.current_value }}/{{ g.target_value }}</span>
+                            <div class="progress-bar" style="max-width:220px;">
+                                <div class="progress-bar-fill" style="width: {% widthratio g.current_value g.target_value 100 %}%;"></div>
+                            </div>
+                        </div>
+                    </li>
+                {% empty %}
+                    <li>Активных целей с дедлайном нет.</li>
+                {% endfor %}
+            </ol>
+            <a href="{% url 'goals_list' user_id=current_user.id %}" class="btn btn-outline" style="margin-top:10px;">Все цели →</a>
+        </div>
+
+        <!-- Виджет 3: финансы -->
+        <div class="card">
+            <h3>💰 Баланс: {{ total_balance }} ₽</h3>
+            <ol class="widget-list">
+                {% for f in recent_finances %}
+                    <li>
+                        <div>
+                            <span class="widget-item-title">{{ f.category.name }} — {{ f.amount }} ₽</span>
+                            <span class="widget-item-meta">{{ f.operation_date|date:"d.m.Y" }}{% if f.comment %} · {{ f.comment }}{% endif %}</span>
+                        </div>
+                    </li>
+                {% empty %}
+                    <li>Операций пока нет.</li>
+                {% endfor %}
+            </ol>
+            <a href="{% url 'finances_table' user_id=current_user.id %}" class="btn btn-outline" style="margin-top:10px;">Все операции →</a>
+        </div>
+
+        <!-- Виджет 4: избранное -->
+        <div class="card">
+            <h3>⭐ Избранные задачи</h3>
+            <ol class="widget-list">
+                {% for t in favorite_tasks %}
+                    <li>
+                        <div style="flex:1;">
+                            <a href="{{ t.get_absolute_url }}" class="widget-item-title">{{ t.title }}</a>
+                            <span class="widget-item-meta">{{ t.get_priority_display }} · до {{ t.due_date|date:"d.m.Y" }}</span>
+                        </div>
+                        <form method="post" action="{% url 'toggle_favorite' user_id=current_user.id pk=t.pk %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="next" value="{% url 'home_page' user_id=current_user.id %}">
+                            <button type="submit" class="fav-btn" title="Убрать из избранного" aria-label="Убрать «{{ t.title }}» из избранного">★</button>
+                        </form>
+                    </li>
+                {% empty %}
+                    <li>Пока нет избранных — отметьте задачу звёздочкой на её странице.</li>
+                {% endfor %}
+            </ol>
+            <a href="{% url 'tasks_table' user_id=current_user.id %}" class="btn btn-outline" style="margin-top:10px;">Все задачи →</a>
+        </div>
+
+    </div>
+
+    {% if all_categories %}
+        <div class="chip-row">
+            {% for c in all_categories %}<span class="chip">{{ c.name }}</span>{% endfor %}
+        </div>
+    {% endif %}
+{% endblock %}
