@@ -2,10 +2,9 @@
 {% block title %}Цели{% endblock %}
 {% block content %}
     <div class="nav-top">
-        <a href="{% url 'dashboard' user_id=current_user.id %}">← Дашборд</a>
+        <h1 style="margin:0;">Ваши цели</h1>
         <a href="{% url 'goal_create' user_id=current_user.id %}" class="btn">+ Цель</a>
     </div>
-    <h1>Ваши цели</h1>
 
     {% for goal in goals %}
         <div class="card">
@@ -18,6 +17,10 @@
             <p style="font-size:13px; color: var(--text-dim);">
                 {{ goal.current_value }} / {{ goal.target_value }} · {{ goal.get_status_display }}
             </p>
+
+            {% if goal.source_url %}
+                <p><a href="{{ goal.source_url }}" target="_blank" rel="noopener">🔗 Источник</a></p>
+            {% endif %}
 
             <p>
                 {% for category in goal.categories.all %}

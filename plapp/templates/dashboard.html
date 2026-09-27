@@ -2,10 +2,6 @@
 {% load planning_tags %}
 {% block title %}Дашборд{% endblock %}
 {% block content %}
-    <div class="nav-top">
-        <span>{% welcome_user %}</span>
-        <a href="{% url 'logout' %}">Выйти</a>
-    </div>
     <p style="color: var(--text-dim); font-size:13px; margin-top:-8px;">
         {% current_time_str "%d.%m.%Y %H:%M" %}
     </p>
@@ -48,6 +44,4 @@
             <p>Срочных задач нет.</p>
         {% endfor %}
     </div>
-
-    <a href="{% url 'goals_list' user_id=current_user.id %}" class="btn btn-outline">Перейти к целям →</a>
 {% endblock %}

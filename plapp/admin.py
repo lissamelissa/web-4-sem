@@ -1,8 +1,10 @@
 import os
 from io import BytesIO
 
+from django import forms
 from django.conf import settings
 from django.contrib import admin
+from django.contrib.auth.hashers import make_password
 from django.http import HttpResponse
 
 from reportlab.lib.pagesizes import A4
@@ -11,13 +13,14 @@ from reportlab.pdfgen import canvas
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
+from simple_history.admin import SimpleHistoryAdmin
+from import_export import resources
+from import_export.admin import ImportExportModelAdmin
+from import_export.formats.base_formats import CSV, XLSX
+
 from .models import *
 
 
-# --- Пункт 1 (третье задание): генерация PDF в админке ---
-
-# Стандартные шрифты reportlab (Helvetica и т.д.) не поддерживают кириллицу,
-# поэтому подключаем реальный TTF-шрифт с рабочей машины.
 _CYRILLIC_FONT_CANDIDATES = [
     r"C:\Windows\Fonts\arial.ttf",
     r"C:\Windows\Fonts\segoeui.ttf",
@@ -31,7 +34,6 @@ def _register_cyrillic_font():
             if 'CyrillicFont' not in pdfmetrics.getRegisteredFontNames():
                 pdfmetrics.registerFont(TTFont('CyrillicFont', path))
             return 'CyrillicFont'
-    # Ни один шрифт не найден — вернётся Helvetica, кириллица не отобразится.
     return 'Helvetica'
 
 
@@ -69,6 +71,29 @@ def export_tasks_pdf(modeladmin, request, queryset):
     return response
 
 
+# Excel определяет кодировку CSV по BOM-метке в начале файла; без неё кириллица
+# показывается кракозябрами на русской локали Windows. utf-8-sig добавляет эту метку.
+class UTF8CSV(CSV):
+    encoding = 'utf-8-sig'
+
+
+# --- Пункт 4 (пятое задание): django-import-export — ресурсы для экспорта ---
+class TaskResource(resources.ModelResource):
+    class Meta:
+        model = tasks
+        fields = ('id', 'title', 'description', 'priority', 'category_id__name',
+                   'due_date', 'status', 'user_id__username', 'created_at')
+        export_order = fields
+
+
+class FinanceResource(resources.ModelResource):
+    class Meta:
+        model = finances
+        fields = ('id', 'user__username', 'category__name', 'amount',
+                   'operation_date', 'comment')
+        export_order = fields
+
+
 class FavoriteInline(admin.TabularInline):
     model = favorites
     extra = 1
@@ -80,14 +105,43 @@ class GoalCategoryInline(admin.TabularInline):
     extra = 1
 
 
-@admin.register(user)
+class UserAdminForm(forms.ModelForm):
+    # Поле в форме называется так же, как в модели, но рендерится как обычное
+    # поле пароля и никогда не показывает уже сохранённый хэш.
+    password_hash = forms.CharField(
+        label="Пароль",
+        required=False,
+        widget=forms.PasswordInput(render_value=False),
+        help_text="Оставьте пустым, чтобы не менять текущий пароль. "
+                   "Введённое значение будет автоматически захешировано.",
+    )
+
+    class Meta:
+        model = user
+        fields = '__all__'
+
+
 class UserAdmin(admin.ModelAdmin):
+    form = UserAdminForm
     list_display = ('id', 'username', 'email', 'role', 'created_at')
     list_filter = ('role', 'created_at')
     search_fields = ('username', 'email')
     list_display_links = ('id', 'username')
     readonly_fields = ('created_at', 'updated_at')
     inlines = [FavoriteInline]
+
+    def save_model(self, request, obj, form, change):
+        new_password = form.cleaned_data.get('password_hash')
+        if new_password:
+            obj.password_hash = make_password(new_password)
+        elif change:
+            obj.password_hash = user.objects.get(pk=obj.pk).password_hash
+        else:
+            obj.password_hash = make_password(None)
+        super().save_model(request, obj, form, change)
+
+
+admin.site.register(user, UserAdmin)
 
 
 @admin.register(task_categories)
@@ -97,7 +151,12 @@ class TaskCategoryAdmin(admin.ModelAdmin):
 
 
 @admin.register(tasks)
-class TaskAdmin(admin.ModelAdmin):
+class TaskAdmin(SimpleHistoryAdmin, ImportExportModelAdmin):
+    # SimpleHistoryAdmin — добавляет кнопку "History" на странице объекта.
+    # ImportExportModelAdmin — добавляет кнопки "Импорт"/"Экспорт" в списке.
+    resource_classes = [TaskResource]
+    formats = [UTF8CSV, XLSX]
+
     list_display = (
         'id',
         'title',
@@ -118,6 +177,7 @@ class TaskAdmin(admin.ModelAdmin):
     date_hierarchy = 'created_at'
 
     raw_id_fields = ('user_id', 'category_id')
+    filter_horizontal = ('extra_categories',)
 
     actions = [export_tasks_pdf]
 
@@ -142,7 +202,10 @@ class FinanceCategoryAdmin(admin.ModelAdmin):
 
 
 @admin.register(finances)
-class FinanceAdmin(admin.ModelAdmin):
+class FinanceAdmin(SimpleHistoryAdmin, ImportExportModelAdmin):
+    resource_classes = [FinanceResource]
+    formats = [UTF8CSV, XLSX]
+
     list_display = ('id', 'user', 'category', 'amount', 'operation_date', 'receipt')
     list_filter = ('operation_date', 'category')
     search_fields = ('comment',)
@@ -153,7 +216,7 @@ class FinanceAdmin(admin.ModelAdmin):
 
 
 @admin.register(goals)
-class GoalAdmin(admin.ModelAdmin):
+class GoalAdmin(SimpleHistoryAdmin):
     list_display = (
         'id',
         'title',

@@ -1,5 +1,6 @@
 from django.db import models
 from django.urls import reverse
+from simple_history.models import HistoricalRecords
 
 
 class ActiveTaskManager(models.Manager):
@@ -14,7 +15,7 @@ class user(models.Model):
         ADMIN = 'admin', 'Admin'
 
     id = models.AutoField(primary_key=True, verbose_name="ID")
-    username = models.CharField(max_length=50, verbose_name="Имя пользователя")
+    username = models.CharField(max_length=50, unique=True, verbose_name="Имя пользователя")
     email = models.CharField(max_length=100, unique=True, verbose_name="Email")
     password_hash = models.CharField(max_length=255, verbose_name="Пароль")
     avatar_path = models.CharField(max_length=255, blank=True, null=True, verbose_name="Аватар")
@@ -58,12 +59,27 @@ class tasks(models.Model):
     id = models.AutoField(primary_key=True, verbose_name="ID")
     user_id = models.ForeignKey(user, on_delete=models.CASCADE, related_name="tasks", verbose_name="Пользователь")
 
+    # Пункт 3 (пятое задание): django-simple-history. Задачи меняют статус,
+    # приоритет и дедлайн многократно за свою жизнь — история показывает,
+    # кто и когда именно это менял.
+    history = HistoricalRecords()
+
     title = models.CharField(max_length=255, verbose_name="Название")
     description = models.TextField(blank=True, null=True, verbose_name="Описание")
 
     priority = models.CharField(max_length=10, choices=Priority.choices, default=Priority.MEDIUM, verbose_name="Приоритет")
 
     category_id = models.ForeignKey(task_categories, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Категория")
+
+    # Пункт 1 (четвёртое задание): обычный models.ManyToManyField (без through).
+    # В отличие от category_id (одна основная категория через FK), сюда можно
+    # добавить сколько угодно дополнительных категорий одной задаче.
+    extra_categories = models.ManyToManyField(
+        task_categories,
+        related_name='extra_tasks',
+        blank=True,
+        verbose_name="Доп. категории",
+    )
 
     due_date = models.DateField(null=True, blank=True, verbose_name="Дедлайн")
 
@@ -130,9 +146,11 @@ class finances(models.Model):
 
     comment = models.CharField(max_length=255, blank=True, null=True, verbose_name="Комментарий")
 
-    # Пункт 2 (третье задание): models.FileField — чек/квитанция к операции.
-    # В отличие от ImageField у задач, сюда можно прикрепить любой файл (PDF, скан и т.д.).
     receipt = models.FileField(upload_to='receipts/', blank=True, null=True, verbose_name="Чек")
+
+    # Финансовые записи по природе требуют аудита: если сумму или дату
+    # операции задним числом поменяли/удалили — это должно быть видно.
+    history = HistoricalRecords()
 
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Создано")
 
@@ -152,6 +170,10 @@ class goals(models.Model):
     id = models.AutoField(primary_key=True, verbose_name="ID")
     user = models.ForeignKey(user, on_delete=models.CASCADE, verbose_name="Пользователь")
 
+    # current_value обновляется со временем — история показывает динамику
+    # приближения к цели, а не только текущий срез.
+    history = HistoricalRecords()
+
     title = models.CharField(max_length=255, verbose_name="Название")
     description = models.TextField(blank=True, null=True, verbose_name="Описание")
 
@@ -164,7 +186,6 @@ class goals(models.Model):
 
     image_path = models.CharField(max_length=255, blank=True, null=True, verbose_name="Изображение")
 
-    # Пункт 3 (третье задание): models.URLField() — ссылка на источник/материал по цели.
     source_url = models.URLField(blank=True, null=True, verbose_name="Ссылка на источник")
 
     categories = models.ManyToManyField(
