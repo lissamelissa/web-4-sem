@@ -31,6 +31,13 @@ class user(models.Model):
     class Meta:
         verbose_name = "Пользователь"
         verbose_name_plural = "Пользователи"
+    @property
+    def is_authenticated(self):
+        return True
+
+    @property
+    def is_anonymous(self):
+        return False
 
 
 class task_categories(models.Model):

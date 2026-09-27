@@ -24,6 +24,8 @@ INSTALLED_APPS = [
     'debug_toolbar',  # пункт 10
     'simple_history',  # история изменений объектов
     'import_export',  # экспорт данных из админки в Excel
+    'rest_framework',
+    'django_filters',
 ]
 
 MIDDLEWARE = [
@@ -90,3 +92,14 @@ MEDIA_ROOT = BASE_DIR / 'media'
 INTERNAL_IPS = [
     '127.0.0.1',
 ]
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'plapp.authentication.CustomUserSessionAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+    'DEFAULT_FILTER_BACKENDS': [
+        'django_filters.rest_framework.DjangoFilterBackend',
+    ],
+}
